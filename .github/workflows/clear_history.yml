@@ -1,0 +1,26 @@
+name: Clear Git History
+on:
+  workflow_dispatch:
+
+jobs:
+  clear-history:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Clear History
+        run: |
+          git config user.name "GitHub Action"
+          git config user.email "actions@github.com"
+          
+          # Create a fresh branch with no history
+          git checkout --orphan temp_clean_branch
+          git add -A
+          git commit -m "Initial Project Submission Commit"
+          
+          # Force overwrite the main branch with the clean one
+          git branch -M temp_clean_branch main
+          git push origin main --force

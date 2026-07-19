@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NIDS — Network Intrusion Detection</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+      background: #f7f8fa; color: #1f2328;
+      min-height: 100vh; padding: 32px 16px;
+    }
+    .page { max-width: 680px; margin: 0 auto; }
+
+    h1   { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
+    .sub { color: #57606a; font-size: 13px; margin-bottom: 28px; }
+
+    /* ── Card ── */
+    .card {
+      background: #fff; border: 1px solid #e5e7eb;
+      border-radius: 8px; padding: 24px 28px; margin-bottom: 24px;
+    }
+    .card h2 { font-size: 1rem; font-weight: 700; margin-bottom: 16px; }
+
+    /* ── Form grid ── */
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    label { display: flex; flex-direction: column; gap: 4px;
+            font-size: 13px; color: #57606a; }
+    input, select {
+      padding: 7px 10px; border: 1px solid #d0d7de; border-radius: 5px;
+      font-size: 14px; background: #fff; color: #1f2328;
+      outline: none;
+    }
+    input:focus, select:focus { border-color: #3b82d4; }
+
+    /* ── Button ── */
+    .btn {
+      margin-top: 18px; width: 100%;
+      padding: 10px; background: #3b82d4; color: #fff;
+      border: none; border-radius: 5px; font-size: 14px;
+      font-weight: 600; cursor: pointer;
+    }
+    .btn:hover   { background: #2563b0; }
+    .btn:disabled{ background: #93b8e8; cursor: not-allowed; }
+    .secondary { background: #6b7280; }
+    .secondary:hover { background: #4b5563; }
+    .inline-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .upload-box { border: 1px dashed #cbd5e1; border-radius: 6px; padding: 12px; background: #fafafa; margin-top: 12px; }
+    .upload-box input[type="file"] { width: 100%; margin-top: 6px; }
+
+    /* ── Result banner ── */
+    #result { display: none; margin-top: 20px; padding: 14px 18px;
+              border-radius: 6px; font-size: 14px; font-weight: 600; }
+    #result.normal  { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+    #result.anomaly { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+    #result.error   { background: #fff3cd; color: #78350f; border: 1px solid #fcd34d; }
+
+    /* ── Raw JSON box ── */
+    pre {
+      margin-top: 10px; background: #f7f8fa; border: 1px solid #e5e7eb;
+      border-radius: 5px; padding: 12px; font-size: 12px;
+      overflow-x: auto; white-space: pre-wrap; display: none;
+    }
+
+    /* ── Health pill ── */
+    .health { display: inline-flex; align-items: center; gap: 6px;
+              font-size: 12px; color: #57606a; margin-bottom: 22px; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: #d1d5db; }
+    .dot.up   { background: #22863a; }
+    .dot.down { background: #cf222e; }
+
+    footer { margin-top: 40px; padding-top: 12px; border-top: 1px solid #e5e7eb;
+             text-align: center; color: #57606a; font-size: 12px; }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <h1>NIDS — Network Intrusion Detection</h1>
+  <p class="sub">Powered by IBM watsonx.ai · Enter a traffic record to classify it</p>
+
+  <div class="health">
+    <span class="dot" id="dot"></span>
+    <span id="health-text">Checking server…</span>
+  </div>
+
+  <div class="card">
+    <h2>Traffic Record</h2>
+    <form id="form">
+      <div class="grid">
+
+        <label>Duration (s)
+          <input type="number" name="duration" value="0" min="0" required />
+        </label>
+
+        <label>Protocol Type
+          <select name="protocol_type">
+            <option value="tcp">tcp</option>
+            <option value="udp">udp</option>
+            <option value="icmp">icmp</option>
+          </select>
+        </label>
+
+        <label>Service
+          <select name="service">
+            <option value="http">http</option>
+            <option value="ftp">ftp</option>
+            <option value="smtp">smtp</option>
+            <option value="ssh">ssh</option>
+            <option value="dns">dns</option>
+            <option value="telnet">telnet</option>
+            <option value="https">https</option>
+            <option value="pop3">pop3</option>
+            <option value="ftp_data">ftp_data</option>
+            <option value="other">other</option>
+          </select>
+        </label>
+
+        <label>Flag
+          <select name="flag">
+            <option value="SF">SF</option>
+            <option value="S0">S0</option>
+            <option value="REJ">REJ</option>
+            <option value="RSTO">RSTO</option>
+            <option value="SH">SH</option>
+            <option value="S1">S1</option>
+            <option value="S2">S2</option>
+            <option value="S3">S3</option>
+            <option value="OTH">OTH</option>
+          </select>
+        </label>
+
+        <label>Src Bytes
+          <input type="number" name="src_bytes" value="232" min="0" required />
+        </label>
+
+        <label>Dst Bytes
+          <input type="number" name="dst_bytes" value="8153" min="0" required />
+        </label>
+
+        <label>Count
+          <input type="number" name="count" value="5" min="0" required />
+        </label>
+
+        <label>Srv Count
+          <input type="number" name="srv_count" value="5" min="0" required />
+        </label>
+
+        <label>SError Rate (0–1)
+          <input type="number" name="serror_rate" value="0.0" min="0" max="1" step="0.01" required />
+        </label>
+
+        <label>RError Rate (0–1)
+          <input type="number" name="rerror_rate" value="0.0" min="0" max="1" step="0.01" required />
+        </label>
+
+        <label>Same Srv Rate (0–1)
+          <input type="number" name="same_srv_rate" value="1.0" min="0" max="1" step="0.01" required />
+        </label>
+
+        <label>Diff Srv Rate (0–1)
+          <input type="number" name="diff_srv_rate" value="0.0" min="0" max="1" step="0.01" required />
+        </label>
+
+      </div><!-- /grid -->
+
+      <div class="inline-row">
+        <button class="btn" type="submit" id="btn">Classify Traffic</button>
+        <button class="btn secondary" type="button" id="csv-btn">Upload CSV</button>
+      </div>
+    </form>
+
+    <div class="upload-box">
+      <strong>CSV upload</strong>
+      <p class="sub">Upload a CSV file with one row per traffic record. The server will score each row and return the results.</p>
+      <input type="file" id="csv-file" accept=".csv" />
+    </div>
+
+    <div id="result"></div>
+    <pre id="raw"></pre>
+  </div><!-- /card -->
+
+  <footer>Made with IBM Bob &nbsp;·&nbsp; NIDS v2.0</footer>
+</div>
+
+<script>
+  // ── Health check ──────────────────────────────────────────────────────────
+  (async () => {
+    const dot  = document.getElementById('dot');
+    const text = document.getElementById('health-text');
+    try {
+      const r = await fetch('/health');
+      if (r.ok) {
+        dot.className  = 'dot up';
+        text.textContent = 'Server is running';
+      } else {
+        throw new Error('not ok');
+      }
+    } catch {
+      dot.className  = 'dot down';
+      text.textContent = 'Server unreachable';
+    }
+  })();
+
+  // ── Predict form ──────────────────────────────────────────────────────────
+  const btn = document.getElementById('btn');
+  const csvBtn = document.getElementById('csv-btn');
+  const result = document.getElementById('result');
+  const raw = document.getElementById('raw');
+  const fileInput = document.getElementById('csv-file');
+
+  function setBusy(isBusy, label) {
+    btn.disabled = isBusy;
+    csvBtn.disabled = isBusy;
+    btn.textContent = isBusy ? 'Classifying…' : label;
+    csvBtn.textContent = isBusy ? 'Uploading…' : 'Upload CSV';
+  }
+
+  function showResponse(data, ok) {
+    raw.textContent = JSON.stringify(data, null, 2);
+    raw.style.display = 'block';
+
+    if (!ok) {
+      result.className = 'error';
+      result.textContent = '⚠ Error: ' + (data.error || 'Unknown error');
+    } else if (Array.isArray(data.results)) {
+      const anomalies = data.results.filter(item => item && item.prediction === 'Anomaly').length;
+      const normals = data.results.filter(item => item && item.prediction === 'Normal').length;
+      result.className = anomalies > 0 ? 'anomaly' : 'normal';
+      result.textContent = `✓ Processed ${data.count} rows — ${normals} normal, ${anomalies} anomaly`;
+    } else if (data.prediction === 'Normal') {
+      result.className = 'normal';
+      result.textContent = '✓ Normal Traffic' + (data.confidence != null ? `  (confidence: ${(data.confidence * 100).toFixed(1)}%)` : '');
+    } else {
+      result.className = 'anomaly';
+      result.textContent = '✗ Anomaly Detected' + (data.confidence != null ? `  (confidence: ${(data.confidence * 100).toFixed(1)}%)` : '');
+    }
+    result.style.display = 'block';
+  }
+
+  document.getElementById('form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    setBusy(true, 'Classify Traffic');
+    result.style.display = 'none';
+    raw.style.display = 'none';
+
+    const fd = new FormData(e.target);
+    const payload = {
+      duration: parseInt(fd.get('duration'), 10),
+      protocol_type: fd.get('protocol_type'),
+      service: fd.get('service'),
+      flag: fd.get('flag'),
+      src_bytes: parseInt(fd.get('src_bytes'), 10),
+      dst_bytes: parseInt(fd.get('dst_bytes'), 10),
+      count: parseInt(fd.get('count'), 10),
+      srv_count: parseInt(fd.get('srv_count'), 10),
+      serror_rate: parseFloat(fd.get('serror_rate')),
+      rerror_rate: parseFloat(fd.get('rerror_rate')),
+      same_srv_rate: parseFloat(fd.get('same_srv_rate')),
+      diff_srv_rate: parseFloat(fd.get('diff_srv_rate')),
+    };
+
+    try {
+      const res = await fetch('/predict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      showResponse(data, res.ok);
+    } catch (err) {
+      result.className = 'error';
+      result.textContent = '⚠ Network error: ' + err.message;
+      result.style.display = 'block';
+    } finally {
+      setBusy(false, 'Classify Traffic');
+    }
+  });
+
+  csvBtn.addEventListener('click', async () => {
+    const file = fileInput.files[0];
+    if (!file) {
+      result.className = 'error';
+      result.textContent = '⚠ Please choose a CSV file first.';
+      result.style.display = 'block';
+      return;
+    }
+
+    setBusy(true, 'Upload CSV');
+    result.style.display = 'none';
+    raw.style.display = 'none';
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch('/predict/csv', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      showResponse(data, res.ok);
+    } catch (err) {
+      result.className = 'error';
+      result.textContent = '⚠ Network error: ' + err.message;
+      result.style.display = 'block';
+    } finally {
+      setBusy(false, 'Upload CSV');
+    }
+  });
+</script>
+</body>
+</html>
